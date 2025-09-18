@@ -1,0 +1,78 @@
+--- General Secret Files ---
+Ignore environment variables files. These often contain API keys, database passwords, etc.
+
+.env
+.env.*
+!.env.example
+Ignore general credential and key files
+
+*.key
+*.pem
+*.token
+credentials.json
+credentials.yml
+credentials.yaml
+--- Cloud Provider Credentials ---
+Google Cloud Platform
+
+gcp-credentials.json
+.gcloud/
+Amazon Web Services
+
+.aws/
+aws-credentials.json
+Microsoft Azure
+
+azure-credentials.json
+.azure/
+--- Language & Framework Specific ---
+Python
+
+instance/
+settings_local.py
+*.pyc
+Node.js
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json # Sometimes contains private registry info, optional
+Ruby / Rails
+
+config/database.yml
+config/master.key
+config/credentials.yml.enc
+Java
+
+*.properties
+target/
+*.class
+--- IDE & System Files ---
+Ignore OS-specific files
+
+.DS_Store
+Thumbs.db
+Ignore IDE-specific settings
+
+.idea/
+.vscode/
+*.swp
+*.swo
+--- Logs and Build Artifacts ---
+Ignore log files
+
+logs/
+*.log
+Ignore build output directories
+
+dist/
+build/
+out/
+public/ # For some frameworks, this is build output
+--- Dependency Directories ---
+In addition to node_modules, other package managers
+
+vendor/
+bower_components/
+jspm_packages/

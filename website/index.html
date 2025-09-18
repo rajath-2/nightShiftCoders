@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🩺 AI Symptom Checker</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      max-width: 600px;
+      width: 100%;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+      font-size: 2.5em;
+    }
+
+    .form-group {
+      margin-bottom: 25px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #555;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #e1e5e9;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: border-color 0.3s ease;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    button {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .result {
+      margin-top: 30px;
+      padding: 25px;
+      border-radius: 15px;
+      background: #f8f9fa;
+      border-left: 5px solid #28a745;
+      animation: slideIn 0.5s ease;
+    }
+
+    .result.error {
+      background: #f8d7da;
+      border-left-color: #dc3545;
+      color: #721c24;
+    }
+
+    .result.warning {
+      background: #fff3cd;
+      border-left-color: #ffc107;
+      color: #856404;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .result-item {
+      margin-bottom: 15px;
+    }
+
+    .result-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .result-label {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .confidence {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.9em;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+
+    .confidence.high {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .confidence.medium {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .confidence.low {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .example-symptoms {
+      margin-top: 10px;
+      font-size: 0.9em;
+      color: #666;
+    }
+
+    .example-symptoms strong {
+      color: #333;
+    }
+
+    .health-disclaimer {
+      margin-top: 20px;
+      padding: 15px;
+      background: #e9ecef;
+      border-radius: 10px;
+      font-size: 0.9em;
+      color: #495057;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🩺 AI Symptom Checker</h1>
+    
+    <form id="symptomForm">
+      <div class="form-group">
+        <label for="symptoms">Enter your symptoms (separate with commas):</label>
+        <input 
+          type="text" 
+          id="symptoms" 
+          placeholder="e.g. fever, cough, headache, fatigue" 
+          required 
+        />
+        <div class="example-symptoms">
+          <strong>Examples:</strong> fever, cough, headache, nausea, dizziness, chest pain, sore throat
+        </div>
+      </div>
+      <button type="submit" id="submitBtn">Analyze Symptoms</button>
+    </form>
+
+    <div id="loading" class="loading" style="display:none;">
+      <div class="spinner"></div>
+      <p>Analyzing your symptoms...</p>
+    </div>
+
+    <div id="output" class="result" style="display:none;"></div>
+
+    <div class="health-disclaimer">
+      ⚠️ <strong>Disclaimer:</strong> This tool is for informational purposes only. 
+      Always consult with a qualified healthcare professional for medical advice, 
+      diagnosis, and treatment.
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("symptomForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const symptomsInput = document.getElementById("symptoms").value.trim();
+      const submitBtn = document.getElementById("submitBtn");
+      const loadingDiv = document.getElementById("loading");
+      const outputDiv = document.getElementById("output");
+      
+      // Validate input
+      if (!symptomsInput) {
+        showError("Please enter at least one symptom.");
+        return;
+      }
+
+      // Parse symptoms
+      const symptoms = symptomsInput
+        .split(",")
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+
+      if (symptoms.length === 0) {
+        showError("Please enter valid symptoms separated by commas.");
+        return;
+      }
+
+      console.log("Sending symptoms:", symptoms);
+
+      // Show loading state
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Analyzing...";
+      loadingDiv.style.display = "block";
+      outputDiv.style.display = "none";
+
+      try {
+        // Test server connection first
+        const healthResponse = await fetch("http://localhost:3000/health");
+        if (!healthResponse.ok) {
+          throw new Error("Server is not responding");
+        }
+
+        // Make prediction request
+        const response = await fetch("http://localhost:3000/api/predict", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({ symptoms })
+        });
+
+        console.log("Response status:", response.status);
+        
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log("Received data:", data);
+
+        displayResult(data);
+
+      } catch (err) {
+        console.error("Request failed:", err);
+        
+        if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
+          showError("Cannot connect to the server. Please make sure the server is running on http://localhost:3000");
+        } else {
+          showError(`Connection error: ${err.message}`);
+        }
+      } finally {
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Analyze Symptoms";
+        loadingDiv.style.display = "none";
+      }
+    });
+
+    function displayResult(data) {
+      const outputDiv = document.getElementById("output");
+      
+      if (data.error && data.disease === "Error") {
+        showError(data.error);
+        return;
+      }
+
+      // Determine confidence level and styling
+      let confidenceClass = "low";
+      let resultClass = "result";
+      
+      if (data.confidence >= 70) {
+        confidenceClass = "high";
+      } else if (data.confidence >= 40) {
+        confidenceClass = "medium";
+        resultClass = "result warning";
+      } else {
+        confidenceClass = "low";
+        resultClass = "result warning";
+      }
+
+      // Format precautions
+      const precautionsText = data.precautions && data.precautions.length > 0 
+        ? data.precautions.join(" • ") 
+        : "Consult a healthcare professional";
+
+      // Build result HTML
+      let resultHTML = `
+        <div class="result-item">
+          <span class="result-label">🎯 Predicted Condition:</span>
+          <strong>${data.disease}</strong>
+          <span class="confidence ${confidenceClass}">${data.confidence}% confidence</span>
+        </div>
+        
+        <div class="result-item">
+          <span class="result-label">🛡️ Recommended Precautions:</span><br>
+          ${precautionsText}
+        </div>
+      `;
+
+      if (data.needMoreInfo) {
+        resultHTML += `
+          <div class="result-item">
+            <span class="result-label">⚠️ Note:</span>
+            The prediction confidence is low. Please provide more specific symptoms or consult a healthcare professional for accurate diagnosis.
+          </div>
+        `;
+      }
+
+      if (data.error) {
+        resultHTML += `
+          <div class="result-item">
+            <span class="result-label">⚠️ System Message:</span>
+            ${data.error}
+          </div>
+        `;
+      }
+
+      outputDiv.innerHTML = resultHTML;
+      outputDiv.className = resultClass;
+      outputDiv.style.display = "block";
+    }
+
+    function showError(message) {
+      const outputDiv = document.getElementById("output");
+      
+      outputDiv.innerHTML = `
+        <div class="result-item">
+          <span class="result-label">❌ Error:</span>
+          ${message}
+        </div>
+      `;
+      
+      outputDiv.className = "result error";
+      outputDiv.style.display = "block";
+    }
+
+    // Add some helpful behavior
+    document.getElementById("symptoms").addEventListener("keypress", function(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById("symptomForm").dispatchEvent(new Event("submit"));
+      }
+    });
+  </script>
+</body>
+</html>
