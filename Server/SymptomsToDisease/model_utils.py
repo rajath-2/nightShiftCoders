@@ -1,8 +1,13 @@
 import pandas as pd
 import joblib
 import os
+import sys
 from fuzzywuzzy import process
 import numpy as np
+
+# Debug function that only prints to stderr
+def debug_print(msg):
+    print(msg, file=sys.stderr)
 
 # Get absolute base directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -35,25 +40,25 @@ def check_files_exist():
 # Check files and load models
 try:
     check_files_exist()
-    print("All required files found")
+    debug_print("All required files found")
     
     clf = joblib.load(MODEL_PATH)
     train_columns = joblib.load(COLUMNS_PATH)
     
-    print(f"Model loaded successfully")
-    print(f"Model can predict {len(clf.classes_)} diseases")
-    print(f"Model expects {len(train_columns)} features")
+    debug_print(f"Model loaded successfully")
+    debug_print(f"Model can predict {len(clf.classes_)} diseases")
+    debug_print(f"Model expects {len(train_columns)} features")
     
     # Try to load precautions
     try:
         precaution_df = pd.read_csv(PRECAUTION_PATH)
-        print(f"Precautions data loaded: {precaution_df.shape[0]} diseases")
+        debug_print(f"Precautions data loaded: {precaution_df.shape[0]} diseases")
     except Exception as e:
-        print(f"Warning: Could not load precautions: {e}")
+        debug_print(f"Warning: Could not load precautions: {e}")
         precaution_df = pd.DataFrame()
         
 except Exception as e:
-    print(f"Error during initialization: {e}")
+    debug_print(f"Error during initialization: {e}")
     raise
 
 def normalize_symptom(s: str) -> str:
@@ -67,14 +72,14 @@ def fuzzy_symptom_match(user_symptoms):
     matched = []
     match_details = []
     
-    print(f"Matching {len(user_symptoms)} user symptoms...")
+    debug_print(f"Matching {len(user_symptoms)} user symptoms...")
     
     for s in user_symptoms:
         if not s or not s.strip():
             continue
             
         s_norm = normalize_symptom(s)
-        print(f"  Looking for: '{s}' -> normalized: '{s_norm}'")
+        debug_print(f"  Looking for: '{s}' -> normalized: '{s_norm}'")
         
         # Try exact match first
         if s_norm in train_columns:
@@ -84,7 +89,7 @@ def fuzzy_symptom_match(user_symptoms):
             # Try fuzzy match
             try:
                 match, score = process.extractOne(s_norm, train_columns)
-                print(f"    Best fuzzy match: '{match}' (score: {score})")
+                debug_print(f"    Best fuzzy match: '{match}' (score: {score})")
                 
                 if score >= 70:  # Threshold for accepting matches
                     matched.append(match)
@@ -94,17 +99,17 @@ def fuzzy_symptom_match(user_symptoms):
             except Exception as e:
                 match_details.append(f"  Error matching '{s}': {e}")
     
-    print("\nMatching results:")
+    debug_print("\nMatching results:")
     for detail in match_details:
-        print(detail)
+        debug_print(detail)
     
-    print(f"\nSuccessfully matched {len(matched)} symptoms: {matched}")
+    debug_print(f"\nSuccessfully matched {len(matched)} symptoms: {matched}")
     return matched
 
 def predict_disease(symptoms_list):
     """Predict disease from symptoms with confidence score."""
     try:
-        print(f"\nPredicting disease for symptoms: {symptoms_list}")
+        debug_print(f"\nPredicting disease for symptoms: {symptoms_list}")
         
         # Handle empty input
         if not symptoms_list:
@@ -120,7 +125,7 @@ def predict_disease(symptoms_list):
         matched_symptoms = fuzzy_symptom_match(symptoms_list)
         
         if not matched_symptoms:
-            print("No symptoms could be matched to training data")
+            debug_print("No symptoms could be matched to training data")
             return "Unknown", 0.0
         
         # Create input vector
@@ -131,7 +136,7 @@ def predict_disease(symptoms_list):
         
         # Convert to DataFrame
         X_input = pd.DataFrame([input_dict])
-        print(f"Input vector created with {sum(input_dict.values())} active features")
+        debug_print(f"Input vector created with {sum(input_dict.values())} active features")
         
         # Get predictions
         probs = clf.predict_proba(X_input)[0]
@@ -139,35 +144,35 @@ def predict_disease(symptoms_list):
         disease = clf.classes_[disease_idx]
         confidence = probs[disease_idx]
         
-        print(f"Prediction: {disease} (confidence: {confidence:.3f})")
+        debug_print(f"Prediction: {disease} (confidence: {confidence:.3f})")
         
         # Show top 3 predictions for debugging
         top_indices = np.argsort(probs)[-3:][::-1]
-        print("Top 3 predictions:")
+        debug_print("Top 3 predictions:")
         for i, idx in enumerate(top_indices, 1):
-            print(f"  {i}. {clf.classes_[idx]}: {probs[idx]:.3f}")
+            debug_print(f"  {i}. {clf.classes_[idx]}: {probs[idx]:.3f}")
         
         return disease, confidence
         
     except Exception as e:
-        print(f"Error in predict_disease: {e}")
+        debug_print(f"Error in predict_disease: {e}")
         return "Error", 0.0
 
 def get_precautions(disease):
     """Return precaution list for a given disease."""
     try:
         if precaution_df.empty:
-            print("No precaution data available")
+            debug_print("No precaution data available")
             return []
         
-        print(f"Looking for precautions for: {disease}")
+        debug_print(f"Looking for precautions for: {disease}")
         
         # Try exact match first
         row = precaution_df[precaution_df["Disease"].str.strip().str.lower() == disease.strip().lower()]
         
         if row.empty:
-            print(f"No precautions found for '{disease}'")
-            print(f"Available diseases: {precaution_df['Disease'].tolist()}")
+            debug_print(f"No precautions found for '{disease}'")
+            debug_print(f"Available diseases: {precaution_df['Disease'].tolist()}")
             return []
         
         # Get precaution columns (exclude Disease column)
@@ -179,31 +184,31 @@ def get_precautions(disease):
             if pd.notna(value) and str(value).strip() and str(value).strip().lower() != 'nan':
                 precautions.append(str(value).strip())
         
-        print(f"Found {len(precautions)} precautions")
+        debug_print(f"Found {len(precautions)} precautions")
         return precautions
         
     except Exception as e:
-        print(f"Error getting precautions: {e}")
+        debug_print(f"Error getting precautions: {e}")
         return []
 
 # Test function
 def test_prediction():
     """Test the prediction system with sample data."""
     test_symptoms = ["fever", "cough", "headache"]
-    print(f"Testing with symptoms: {test_symptoms}")
+    debug_print(f"Testing with symptoms: {test_symptoms}")
     
     try:
         disease, confidence = predict_disease(test_symptoms)
         precautions = get_precautions(disease)
         
-        print(f"Test result:")
-        print(f"  Disease: {disease}")
-        print(f"  Confidence: {confidence:.3f}")
-        print(f"  Precautions: {precautions}")
+        debug_print(f"Test result:")
+        debug_print(f"  Disease: {disease}")
+        debug_print(f"  Confidence: {confidence:.3f}")
+        debug_print(f"  Precautions: {precautions}")
         
         return True
     except Exception as e:
-        print(f"Test failed: {e}")
+        debug_print(f"Test failed: {e}")
         return False
 
 if __name__ == "__main__":

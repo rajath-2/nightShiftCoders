@@ -1,12 +1,32 @@
 import sys
 import json
 import traceback
-import model_utils
+import os
+
+# Redirect all debugging output to stderr to keep stdout clean for JSON
+def debug_print(msg):
+    print(msg, file=sys.stderr)
+
+try:
+    import model_utils
+    debug_print("Model utils imported successfully")
+except ImportError as e:
+    debug_print(f"Failed to import model_utils: {e}")
+    # Exit with error JSON
+    error_result = {
+        "error": "Missing required modules",
+        "disease": "System Error",
+        "confidence": 0.0,
+        "precautions": ["AI service is currently unavailable"],
+        "needMoreInfo": True
+    }
+    print(json.dumps(error_result))
+    sys.exit(1)
 
 def predict_symptoms(symptoms):
     """Main prediction function."""
     try:
-        print(f"Received symptoms: {symptoms}", file=sys.stderr)
+        debug_print(f"Received symptoms: {symptoms}")
         
         # Validate input
         if not symptoms:
@@ -33,17 +53,17 @@ def predict_symptoms(symptoms):
                 "error": "No valid symptoms provided"
             }
         
-        print(f"Cleaned symptoms: {cleaned_symptoms}", file=sys.stderr)
+        debug_print(f"Cleaned symptoms: {cleaned_symptoms}")
         
         # Get disease prediction
         disease, confidence = model_utils.predict_disease(cleaned_symptoms)
         
-        print(f"Prediction result: {disease} (confidence: {confidence})", file=sys.stderr)
+        debug_print(f"Prediction result: {disease} (confidence: {confidence})")
         
         # Get precautions
         try:
             precautions = model_utils.get_precautions(disease)
-            print(f"Found {len(precautions)} precautions for {disease}", file=sys.stderr)
+            debug_print(f"Found {len(precautions)} precautions for {disease}")
             if not precautions:
                 precautions = [
                     "Rest and stay hydrated",
@@ -51,11 +71,9 @@ def predict_symptoms(symptoms):
                     "Consult a healthcare professional if symptoms worsen",
                     "Maintain good hygiene"
                 ]
-                print(f"No specific precautions found, using general advice", file=sys.stderr)
+                debug_print(f"No specific precautions found, using general advice")
         except Exception as e:
-            print(f"Error getting precautions: {e}", file=sys.stderr)
-            import traceback
-            traceback.print_exc(file=sys.stderr)
+            debug_print(f"Error getting precautions: {e}")
             precautions = [
                 "Consult a healthcare professional",
                 "Rest and stay hydrated",
@@ -65,20 +83,21 @@ def predict_symptoms(symptoms):
         # Determine if more info is needed
         need_more_info = confidence < 0.4 or disease == "Unknown"
         
+        # Ensure all values are JSON serializable
         result = {
             "disease": str(disease),
-            "confidence": float(round(confidence * 100, 2)),  # Convert to percentage and ensure it's Python float
+            "confidence": float(round(confidence * 100, 2)),  # Convert to percentage
             "precautions": precautions if precautions else ["Consult a healthcare professional"],
-            "needMoreInfo": bool(need_more_info)  # Ensure it's Python bool, not numpy bool
+            "needMoreInfo": bool(need_more_info)
         }
         
-        print(f"Final result: {result}", file=sys.stderr)
+        debug_print(f"Final result: {result}")
         return result
         
     except Exception as e:
         error_msg = f"Error in predict_symptoms: {str(e)}"
-        print(f"❌ {error_msg}", file=sys.stderr)
-        print(f"❌ Traceback: {traceback.format_exc()}", file=sys.stderr)
+        debug_print(f"❌ {error_msg}")
+        debug_print(f"❌ Traceback: {traceback.format_exc()}")
         
         return {
             "disease": "Error",
@@ -90,7 +109,7 @@ def predict_symptoms(symptoms):
 
 if __name__ == "__main__":
     try:
-        print("Starting prediction API...", file=sys.stderr)
+        debug_print("Starting prediction API...")
         
         # Check if symptoms were passed
         if len(sys.argv) < 2:
@@ -98,15 +117,15 @@ if __name__ == "__main__":
                 "error": "No symptoms provided in command line arguments",
                 "disease": "Unknown",
                 "confidence": 0.0,
-                "precautions": [],
+                "precautions": ["Please provide symptoms for analysis"],
                 "needMoreInfo": True
             }
         else:
             # Parse symptoms from command line
             try:
                 symptoms_json = sys.argv[1]
-                print(f"Raw input: '{symptoms_json}'", file=sys.stderr)
-                print(f"Input length: {len(symptoms_json)}", file=sys.stderr)
+                debug_print(f"Raw input: '{symptoms_json}'")
+                debug_print(f"Input length: {len(symptoms_json)}")
                 
                 # Handle different input formats
                 symptoms = None
@@ -115,43 +134,44 @@ if __name__ == "__main__":
                 try:
                     if symptoms_json.startswith('[') and symptoms_json.endswith(']'):
                         symptoms = json.loads(symptoms_json)
-                        print(f"Parsed as JSON array", file=sys.stderr)
+                        debug_print(f"Parsed as JSON array")
                     else:
                         raise json.JSONDecodeError("Not JSON format", symptoms_json, 0)
                 except json.JSONDecodeError:
-                    print(f"Not JSON format, parsing as comma-separated", file=sys.stderr)
+                    debug_print(f"Not JSON format, parsing as comma-separated")
                     # Parse as comma-separated string
                     symptoms = symptoms_json.strip().split(',')
                     symptoms = [s.strip().strip('"').strip("'") for s in symptoms if s.strip()]
-                    print(f"Parsed as comma-separated", file=sys.stderr)
+                    debug_print(f"Parsed as comma-separated")
                 
-                print(f"Final parsed symptoms: {symptoms}", file=sys.stderr)
+                debug_print(f"Final parsed symptoms: {symptoms}")
                 
                 # Run prediction
                 result = predict_symptoms(symptoms)
                 
             except json.JSONDecodeError as e:
-                print(f"❌ JSON parsing error: {e}", file=sys.stderr)
+                debug_print(f"❌ JSON parsing error: {e}")
                 result = {
                     "error": f"Invalid JSON format: {str(e)}",
                     "disease": "Error",
                     "confidence": 0.0,
-                    "precautions": [],
+                    "precautions": ["Invalid input format"],
                     "needMoreInfo": True
                 }
             except Exception as e:
-                print(f"❌ Unexpected error: {e}", file=sys.stderr)
-                print(f"❌ Traceback: {traceback.format_exc()}", file=sys.stderr)
+                debug_print(f"❌ Unexpected error: {e}")
+                debug_print(f"❌ Traceback: {traceback.format_exc()}")
                 result = {
                     "error": f"Unexpected error: {str(e)}",
                     "disease": "Error", 
                     "confidence": 0.0,
-                    "precautions": [],
+                    "precautions": ["System error occurred"],
                     "needMoreInfo": True
                 }
         
-        # Output result as JSON
-        print(json.dumps(result, indent=2))
+        # Output result as JSON to stdout ONLY
+        # No other print statements should go to stdout
+        print(json.dumps(result, ensure_ascii=False))
         
     except Exception as e:
         # Last resort error handling
@@ -162,4 +182,4 @@ if __name__ == "__main__":
             "precautions": ["System is currently unavailable"],
             "needMoreInfo": True
         }
-        print(json.dumps(error_result))
+        print(json.dumps(error_result, ensure_ascii=False))
